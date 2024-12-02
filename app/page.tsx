@@ -53,7 +53,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ urls: mapData.mapUrls, bringYourOwnFirecrawlApiKey: bringYourOwnFirecrawlApiKey }),
+        body: JSON.stringify({ url: inputUrl, urls: mapData.mapUrls, bringYourOwnFirecrawlApiKey: bringYourOwnFirecrawlApiKey }),
       });
       const data = await llmsResponse.json();
       setApiMessage(data.llmstxt);
@@ -158,7 +158,7 @@ export default function Home() {
                     {!bringYourOwnFirecrawlApiKey && (
                       <div className="absolute top-0 left-0 w-full h-60 bg-gradient-to-b from-white dark:from-black to-transparent pointer-events-auto flex justify-center">
                         <div className="p-4">
-                        Limited to 10 pages -  For full results get a<a href="https://firecrawl.dev" className="text-blue-500 pointer-events-auto" target="_blank" rel="noopener noreferrer"> free Firecrawl key 🔥</a>
+                        For full results get a<a href="https://firecrawl.dev" className="text-blue-500 pointer-events-auto" target="_blank" rel="noopener noreferrer"> free Firecrawl key 🔥</a>
                         </div>
                       </div>
                     )}
@@ -174,12 +174,14 @@ export default function Home() {
                 Copy {showFullText ? "llms-full-txt" : "llms.txt"}
               </button>
               
-              <button
-                onClick={() => setShowFullText(!showFullText)}
-                className="ml-4 mt-4 rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-              >
-                {showFullText ? "Show llms.txt" : "Show llms-full.txt"}
-              </button>
+              {apiMessage.slice(-100) !== fullApiMessage.slice(-100) && (
+                <button
+                  onClick={() => setShowFullText(!showFullText)}
+                  className="ml-4 mt-4 rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
+                >
+                  {showFullText ? "Show llms.txt" : "Show llms-full.txt"}
+                </button>
+              )}
          
             </div>
             </div>

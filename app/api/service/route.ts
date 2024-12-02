@@ -6,17 +6,16 @@ import { createClient } from '@supabase/supabase-js'
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import fetch from 'node-fetch';
 
 export const maxDuration = 300; 
 
-
-
-
 export async function POST(request: Request) {
-  const { urls, bringYourOwnFirecrawlApiKey } = await request.json();
+  const { url,urls, bringYourOwnFirecrawlApiKey } = await request.json();
   let firecrawlApiKey: string | undefined;
   let limit: number = 100;
   let no_limit: boolean = false;
+  let github: boolean = false;
   if (bringYourOwnFirecrawlApiKey) {
     firecrawlApiKey = bringYourOwnFirecrawlApiKey;
     console.log("Using provided Firecrawl API key. Limit set to 100");
@@ -26,16 +25,12 @@ export async function POST(request: Request) {
     limit = 10;
     console.log("Using default limit of 10");
   }
-  
-
-  
 
   if (!firecrawlApiKey) {
     throw new Error('FIRECRAWL_API_KEY is not set');
   }
 
   const app = new FirecrawlApp({ apiKey: firecrawlApiKey });
-
 
   let urlsToScrape = urls;
 
@@ -47,13 +42,10 @@ export async function POST(request: Request) {
   let urlObj;
   if (sampleUrl.startsWith('http://') || sampleUrl.startsWith('https://')) {
     urlObj = new URL(sampleUrl);
-    
   } else if (sampleUrl.startsWith('http:/') || sampleUrl.startsWith('https:/')) {
     urlObj = new URL(sampleUrl);
- 
   } else {
     urlObj = new URL(`http://${sampleUrl}`);
-  
   }
   
   const stemUrl = `${urlObj.hostname}`;
@@ -65,7 +57,7 @@ export async function POST(request: Request) {
   const { data: cacheData, error: cacheError } = await supabase
     .from('cache')
     .select('llmstxt, llmsfulltxt, cached_at')
-    .eq('url', stemUrl)
+    .eq('url', url)
     .eq('no_limit', no_limit)
     .single();
 
@@ -79,8 +71,8 @@ export async function POST(request: Request) {
     }
   }
 
-  let llmstxt = `# ${stemUrl} llms.txt\n\n`;
-  let llmsFulltxt = `# ${stemUrl} llms-full.txt\n\n`;
+  let llmstxt = `# ${url} llms.txt\n\n`;
+  let llmsFulltxt = `# ${url} llms-full.txt\n\n`;
 
   // Batch scrape the website
 
@@ -88,20 +80,43 @@ export async function POST(request: Request) {
     throw new Error('URLs are not defined');
   }
 
-  // Scrape multiple websites (synchronous):
-  const batchScrapeResult = await app.batchScrapeUrls(urls, {
-    formats: ['markdown'],
-    onlyMainContent: true,
-  });
+  if (stemUrl.includes('github.com')) {
+    const pathSegments = urlObj.pathname.split('/').filter(segment => segment);
+    if (pathSegments.length >= 2) {
+      github = true;
+      const owner = pathSegments[0];
+      const repo = pathSegments[1];
+      const githubUrl = `https://uithub.com/${owner}/${repo}?maxTokens=1000&accept=text/markdown`;
+      const response = await fetch(githubUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/markdown'
+        }
+      });
 
+      if (response.ok) {
+        const githubContent = await response.text();
+        llmstxt += githubContent.split('/')[0];
+        llmsFulltxt += githubContent.split('/')[0];
+      } else {
+        throw new Error(`Failed to fetch GitHub content: ${response.statusText}`);
+      }
+    }
+  } else {
 
+    // Scrape multiple websites (synchronous):
+    const batchScrapeResult = await app.batchScrapeUrls(urls, {
+      formats: ['markdown'],
+      onlyMainContent: true,
+    });
 
-  if (!batchScrapeResult.success) {
-    throw new Error(`Failed to scrape: ${batchScrapeResult.error}`);
-  }
-  for (const result of batchScrapeResult.data) {
-    const metadata = result.metadata;
-    const openai = new OpenAI({
+    if (!batchScrapeResult.success) {
+      throw new Error(`Failed to scrape: ${batchScrapeResult.error}`);
+    }
+
+    for (const result of batchScrapeResult.data) {
+      const metadata = result.metadata;
+      const openai = new OpenAI({
         apiKey: process.env.GEMINI_API_KEY,
         baseURL: "https://generativelanguage.googleapis.com/v1beta/openai"
     });
@@ -129,24 +144,25 @@ export async function POST(request: Request) {
     llmstxt = llmstxt + `- [${title}](${metadata?.url}): ${description}\n`; 
     llmsFulltxt = llmsFulltxt + result.markdown;
   
+    }
   }
 
+  
 
-  if (!no_limit) {
-    llmstxt = `*Note: This is llmstxt.txt is not complete, please enter a Firecrawl API key to get the entire llmstxt.txt at llmstxt.firecrawl.dev or you can access llms.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/https://${stemUrl}?FIRECRAWL_API_KEY=YOUR_API_KEY' or llms-full.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/https://${stemUrl}/full?FIRECRAWL_API_KEY=YOUR_API_KEY'\n\n` + llmstxt
-    llmsFulltxt =  `*Note: This is llms-full.txt is not complete, please enter a Firecrawl API key to get the entire llms-full.txt at llmstxt.firecrawl.dev or you can access llms.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/https://${stemUrl}?FIRECRAWL_API_KEY=YOUR_API_KEY' or llms-full.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/https://${stemUrl}/full?FIRECRAWL_API_KEY=YOUR_API_KEY'\n\n` + llmsFulltxt
+  if (!no_limit || !github) {
+    llmstxt = `*Note: This is llmstxt.txt is not complete, please enter a Firecrawl API key to get the entire llmstxt.txt at llmstxt.firecrawl.dev or you can access llms.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}?FIRECRAWL_API_KEY=YOUR_API_KEY' or llms-full.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}/full?FIRECRAWL_API_KEY=YOUR_API_KEY'\n\n` + llmstxt
+    llmsFulltxt =  `*Note: This is llms-full.txt is not complete, please enter a Firecrawl API key to get the entire llms-full.txt at llmstxt.firecrawl.dev or you can access llms.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}?FIRECRAWL_API_KEY=YOUR_API_KEY' or llms-full.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}/full?FIRECRAWL_API_KEY=YOUR_API_KEY'\n\n` + llmsFulltxt
   }
 
   const { data, error } = await supabase
     .from('cache')
     .insert([
-      { url: stemUrl, llmstxt: llmstxt, llmsfulltxt: llmsFulltxt, no_limit: no_limit }
+      { url: url, llmstxt: llmstxt, llmsfulltxt: llmsFulltxt, no_limit: no_limit }
     ]);
 
   if (error) {
     throw new Error(`Failed to insert into Supabase: ${error.message}`);
   }
-
 
   return NextResponse.json({ llmstxt: llmstxt, llmsFulltxt: llmsFulltxt });
 }

@@ -40,6 +40,7 @@ export async function GET(
 
     // Prepare the request body for /api/service
     const serviceRequestBody = {
+      url: targetUrl,
       urls: mapData.mapUrls,
       bringYourOwnFirecrawlApiKey: firecrawlApiKey,
     };

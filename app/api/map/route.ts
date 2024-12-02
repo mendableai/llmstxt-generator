@@ -21,31 +21,32 @@ export async function POST(request: Request) {
     console.log("Using default limit of 10");
   }
 
-
   if (!firecrawlApiKey) {
     throw new Error('FIRECRAWL_API_KEY is not set');
   }
 
   const app = new FirecrawlApp({ apiKey: firecrawlApiKey });
 
-
   let urlObj;
   if (url.startsWith('http://') || url.startsWith('https://')) {
     urlObj = new URL(url);
-    
   } else if (url.startsWith('http:/') || url.startsWith('https:/')) {
     urlObj = new URL(url);
- 
   } else {
     urlObj = new URL(`http://${url}`);
-  
   }
-  
-  const stemUrl = `${urlObj.hostname}`;
 
- 
-  let llmstxt = `# ${urlObj.hostname} llms.txt\n\n`;
-  let llmsFulltxt = `# ${urlObj.hostname} llms-full.txt\n\n`;
+  let stemUrl = `${urlObj.hostname}`;
+
+  // If the URL is a GitHub URL, include the owner and repo name in the stemUrl
+  if (stemUrl.includes('github.com')) {
+    const pathSegments = urlObj.pathname.split('/').filter(segment => segment);
+    if (pathSegments.length >= 2) {
+      const owner = pathSegments[0];
+      const repo = pathSegments[1];
+      stemUrl = `${stemUrl}/${owner}/${repo}`;
+    }
+  }
 
   // Map a website
   const mapResult = await app.mapUrl(stemUrl, {
