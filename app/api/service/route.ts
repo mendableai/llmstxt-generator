@@ -16,10 +16,12 @@ export async function POST(request: Request) {
   let limit: number = 100;
   let no_limit: boolean = false;
   let github: boolean = false;
+  let maxTokens: number = 1000;
   if (bringYourOwnFirecrawlApiKey) {
     firecrawlApiKey = bringYourOwnFirecrawlApiKey;
     console.log("Using provided Firecrawl API key. Limit set to 100");
     no_limit = true;
+    maxTokens = 10000;
   } else {
     firecrawlApiKey = process.env.FIRECRAWL_API_KEY;
     limit = 10;
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
       github = true;
       const owner = pathSegments[0];
       const repo = pathSegments[1];
-      const githubUrl = `https://uithub.com/${owner}/${repo}?maxTokens=1000&accept=text/markdown`;
+      const githubUrl = `https://uithub.com/${owner}/${repo}?maxTokens=${maxTokens}&accept=text/markdown`;
       const response = await fetch(githubUrl, {
         method: 'GET',
         headers: {
@@ -97,7 +99,7 @@ export async function POST(request: Request) {
       if (response.ok) {
         const githubContent = await response.text();
         llmstxt += githubContent.split('/')[0];
-        llmsFulltxt += githubContent.split('/')[0];
+        llmsFulltxt += githubContent;
       } else {
         throw new Error(`Failed to fetch GitHub content: ${response.statusText}`);
       }
