@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   const supabase = createClient(supabaseUrl!, supabaseKey!);
 
   // clear cache: debug
-  await supabase.from('cache').delete().eq('url', url).eq('no_limit', no_limit);
+  // await supabase.from('cache').delete().eq('url', url).eq('no_limit', no_limit);
   
   const { data: cacheData, error: cacheError } = await supabase
     .from('cache')
