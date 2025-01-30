@@ -56,6 +56,9 @@ export async function POST(request: Request) {
   const supabaseKey = process.env.SUPABASE_KEY;
   const supabase = createClient(supabaseUrl!, supabaseKey!);
 
+  // clear cache: debug
+  // await supabase.from('cache').delete().eq('url', url).eq('no_limit', no_limit);
+  
   const { data: cacheData, error: cacheError } = await supabase
     .from('cache')
     .select('llmstxt, llmsfulltxt, cached_at')
@@ -151,9 +154,10 @@ export async function POST(request: Request) {
 
   
 
+  console.log('whaaat')
   if (!no_limit || !github) {
-    llmstxt = `*Note: This is llmstxt.txt is not complete, please enter a Firecrawl API key to get the entire llmstxt.txt at llmstxt.firecrawl.dev or you can access llms.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}?FIRECRAWL_API_KEY=YOUR_API_KEY' or llms-full.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}/full?FIRECRAWL_API_KEY=YOUR_API_KEY'\n\n` + llmstxt
-    llmsFulltxt =  `*Note: This is llms-full.txt is not complete, please enter a Firecrawl API key to get the entire llms-full.txt at llmstxt.firecrawl.dev or you can access llms.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}?FIRECRAWL_API_KEY=YOUR_API_KEY' or llms-full.txt via API with curl -X GET 'http://llmstxt.firecrawl.dev/${url}/full?FIRECRAWL_API_KEY=YOUR_API_KEY'\n\n` + llmsFulltxt
+    llmstxt = `*Note: This is an incomplete result, please enable full generation by entering a Firecrawl key.\n\n` + llmstxt
+    llmsFulltxt =  llmsFulltxt
   }
 
   const { data, error } = await supabase
