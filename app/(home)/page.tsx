@@ -232,7 +232,7 @@ export default function Page() {
               </div>
               <Button className="w-24" disabled={canSubmit}>
                 {!loading && <span>Generate</span>}
-                {loading && <Loader2 className="size-4 ml-2 animate-spin" />}
+                {loading && <Loader2 className="size-4 animate-spin" />}
               </Button>
             </div>
           </div>
