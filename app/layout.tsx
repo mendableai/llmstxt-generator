@@ -1,24 +1,24 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { cn } from "@/lib/utils";
+import { defaultMetadata } from "@/lib/metadata";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
+const geistSans = Geist({
   variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
+  weight: "variable",
+  subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Generate llms.txt",
-  description: "Generate llms.txt for any website",
-};
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  weight: "variable",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = defaultMetadata;
 
 export default function RootLayout({
   children,
@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-      className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-secondary-foreground`}
+      className={cn(geistSans.variable, geistMono.variable, "font-sans antialiased bg-background text-secondary-foreground")}
       >
         <ThemeProvider
           attribute="class"

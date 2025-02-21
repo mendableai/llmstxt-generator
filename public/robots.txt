@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://llmstxt.firecrawl.dev/sitemap.xml
