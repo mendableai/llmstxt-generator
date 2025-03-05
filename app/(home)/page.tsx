@@ -228,7 +228,7 @@ export default function Page() {
                     }
                   }}
                 />
-                <Label htmlFor="airplane-mode">Full generation</Label>
+                <Label htmlFor="airplane-mode">llms-full.txt</Label>
               </div>
               <Button className="w-24" disabled={canSubmit}>
                 {!loading && <span>Generate</span>}
@@ -237,6 +237,15 @@ export default function Page() {
             </div>
           </div>
         </form>
+
+        <button
+          onClick={() => {
+            setIsModalOpen(true);
+          }}
+          className="mt-2 text-sm text-primary hover:text-primary/80 transition-colors"
+        >
+          Enter Firecrawl API key for full generation
+        </button>
 
         <div className="w-full overflow-hidden flex flex-col gap-2 mt-4">
           <div className="relative w-full">
@@ -308,7 +317,7 @@ export default function Page() {
                   {finalMessage.isFull
                     ? finalMessage.fullMessage
                     : finalMessage.message}
-                  {!finalMessage.isFull && (
+                  {!hasKey && (
                     <div className="flex justify-center">
                       <div className="px-4 mt-8 mb-4">
                         For full results get a
@@ -344,7 +353,7 @@ export default function Page() {
                   Copy
                 </Button>
 
-                {!finalMessage.isFull && (
+                {!hasKey && (
                   <Button className="w-full" onClick={retryWithFullGeneration}>
                     Re-try with full generation
                   </Button>

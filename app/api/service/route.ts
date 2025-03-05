@@ -55,25 +55,7 @@ export async function POST(request: Request) {
   const supabaseKey = process.env.SUPABASE_KEY;
   const supabase = createClient(supabaseUrl!, supabaseKey!);
 
-  // clear cache: debug
-  // await supabase.from('cache').delete().eq('url', url).eq('no_limit', no_limit);
   
-  const { data: cacheData, error: cacheError } = await supabase
-    .from('cache')
-    .select('llmstxt, llmsfulltxt, cached_at')
-    .eq('url', url)
-    .eq('no_limit', no_limit)
-    .single();
-
-  if (cacheError) {
-    console.log('no cache hit');
-  } else if (cacheData) {
-    const cacheAge = (new Date().getTime() - new Date(cacheData.cached_at).getTime()) / (1000 * 60 * 60 * 24);
-    if (cacheAge < 3) {
-      console.log(`cache hit for ${stemUrl}`);
-      return NextResponse.json({ llmstxt: cacheData.llmstxt, llmsFulltxt: cacheData.llmsfulltxt });
-    }
-  }
 
   let llmstxt = `# ${url} llms.txt\n\n`;
   let llmsFulltxt = `# ${url} llms-full.txt\n\n`;
@@ -152,9 +134,7 @@ export async function POST(request: Request) {
   }
 
   
-
-  console.log('whaaat')
-  if (!no_limit || !github) {
+  if (!bringYourOwnFirecrawlApiKey) {
     llmstxt = `*Note: This is an incomplete result, please enable full generation by entering a Firecrawl key.\n\n` + llmstxt
     llmsFulltxt =  llmsFulltxt
   }
