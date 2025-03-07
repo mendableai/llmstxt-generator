@@ -181,8 +181,8 @@ export default function Page() {
   return (
     <PageContainer className="min-h-screen h-full flex items-center justify-center">
       <div className="w-full py-12 flex flex-col h-full justify-center items-center relative">
-        <h1 className="text-center text-pretty text-3xl lg:text-5xl font-semibold font-mono tracking-tight">
-          LLMs.txt generator
+        <h1 className="text-center text-pretty text-3xl lg:text-5xl font-semibold font-mono tracking-tight relative">
+          LLMs.txt generator<span className="absolute -top-3 -right-7 text-lg lg:text-2xl text-orange-500 animate-pulse">v2</span>
         </h1>
         <h2 className="text-center text-balance lg:text-lg mt-2">
           Generate consolidated text files from websites for LLM training and
