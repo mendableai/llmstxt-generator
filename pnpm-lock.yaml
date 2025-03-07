@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@mendable/firecrawl-js':
-        specifier: ^1.8.4
-        version: 1.15.7(ws@8.18.0)
+        specifier: ^1.19.0
+        version: 1.19.0(ws@8.18.0)
       '@radix-ui/react-dialog':
         specifier: ^1.1.5
         version: 1.1.5(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@19.0.0-rc-66855b96-20241106(react@19.0.0-rc-66855b96-20241106))(react@19.0.0-rc-66855b96-20241106)
@@ -248,8 +248,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
 
-  '@mendable/firecrawl-js@1.15.7':
-    resolution: {integrity: sha512-avCwLyzEtrD/D+gchvmbrlThRyeqVXozVGMalDlCnb3cBfm6iRv99PbiZNu/vy6I+kuz/lbxCMewnVPbCr4VCw==}
+  '@mendable/firecrawl-js@1.19.0':
+    resolution: {integrity: sha512-T0mEBVFyOMQkxLjq7QdXxxtlPJl2tpcl+SpusLSo4rngn/Nv/drJv3krjlN+d1isrCz/PZ6xqU4Sf5LLvuIT2g==}
 
   '@next/env@15.0.3':
     resolution: {integrity: sha512-t9Xy32pjNOvVn2AS+Utt6VmyrshbpfUMhIjFO60gI58deSo/KgLOp31XZ4O+kY/Is8WAGYwA5gR7kOb1eORDBA==}
@@ -1554,7 +1554,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  '@mendable/firecrawl-js@1.15.7(ws@8.18.0)':
+  '@mendable/firecrawl-js@1.19.0(ws@8.18.0)':
     dependencies:
       axios: 1.7.9
       isows: 1.0.6(ws@8.18.0)

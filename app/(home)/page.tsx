@@ -342,7 +342,7 @@ export default function Page() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    navigator.clipboard.writeText(finalMessage.message);
+                    navigator.clipboard.writeText(finalMessage.isFull ? finalMessage.fullMessage : finalMessage.message);
                     toast({
                       title: "Copied to clipboard",
                       description:
