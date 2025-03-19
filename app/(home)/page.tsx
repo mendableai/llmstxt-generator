@@ -79,6 +79,7 @@ export default function Page() {
 
   const callApi = React.useCallback(async () => {
     const isFull = wantsFull && hasKey;
+    const formattedUrl = url.toLowerCase();
 
     setLoading(true);
     try {
@@ -88,7 +89,7 @@ export default function Page() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url: url,
+          url: formattedUrl,
           bringYourOwnFirecrawlApiKey: firecrawlKey,
         }),
       });
@@ -100,7 +101,7 @@ export default function Page() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url: url,
+          url: formattedUrl,
           urls: mapData.mapUrls,
           bringYourOwnFirecrawlApiKey: firecrawlKey,
         }),
