@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-
+import FirecrawlApp from '@mendable/firecrawl-js';
+import { config } from 'dotenv';
+config();
 
 export const maxDuration = 300;
 
@@ -10,59 +11,73 @@ export async function GET(
 ) {
   try {
     const resolvedParams = await params;
-    const targetUrl = decodeURIComponent(resolvedParams.slug.join('/'));
+    // Join the slug segments
+    let rawUrl = resolvedParams.slug.join('/');
+    console.log(`Raw URL from slug: ${rawUrl}`);
+    
+    // Normalize the URL
+    let targetUrl = rawUrl;
+    
+    // Check for malformed protocols with only one slash
+    if (targetUrl.match(/^https?:\/[^\/]/)) {
+      // Convert https:/example.com to https://example.com
+      targetUrl = targetUrl.replace(/^(https?:\/)([^\/].*)/, '$1/$2');
+      console.log(`Fixed malformed protocol (missing slash): ${targetUrl}`);
+    }
+    // Check for protocol with right number of slashes
+    else if (targetUrl.match(/^https?:\/\/.+/)) {
+      // URL already has a valid protocol
+      console.log(`URL has valid protocol: ${targetUrl}`);
+    } 
+    // No protocol at all
+    else {
+      // Add https:// protocol
+      targetUrl = `https://${targetUrl}`;
+      console.log(`Added protocol: ${targetUrl}`);
+    }
+    
     const { searchParams } = new URL(request.url);
-    const firecrawlApiKey = searchParams.get('FIRECRAWL_API_KEY') || request.headers.get('FIRECRAWL_API_KEY');
+    const firecrawlApiKey = searchParams.get('FIRECRAWL_API_KEY') || request.headers.get('FIRECRAWL_API_KEY') || process.env.FIRECRAWL_API_KEY;
 
-
-
-    // Prepare the request body for /api/map
-    const mapRequestBody = {
-      url: targetUrl,
-      bringYourOwnFirecrawlApiKey: firecrawlApiKey,
-    };
-
-    // Send POST request to /api/map
-    const mapResponse = await fetch(`${request.nextUrl.origin}/api/map`, {
-      method: 'POST',
-      body: JSON.stringify(mapRequestBody),
-    });
-
-    if (!mapResponse.ok) {
-      const errorText = await mapResponse.text();
+    if (!firecrawlApiKey) {
       return NextResponse.json(
-        { error: `Error from /api/map: ${errorText}` },
-        { status: mapResponse.status }
+        { error: 'FIRECRAWL_API_KEY is not set' },
+        { status: 500 }
       );
     }
 
-    const mapData = await mapResponse.json();
+    // Initialize FirecrawlApp with the API key
+    const app = new FirecrawlApp({ apiKey: firecrawlApiKey });
 
-    // Prepare the request body for /api/service
-    const serviceRequestBody = {
-      url: targetUrl,
-      urls: mapData.mapUrls,
-      bringYourOwnFirecrawlApiKey: firecrawlApiKey,
+    // Set maxUrls based on whether user provided their own API key
+    const maxUrls = searchParams.get('FIRECRAWL_API_KEY') || request.headers.get('FIRECRAWL_API_KEY') ? 100 : 10;
+    
+    // Define generation parameters
+    const generationParams = {
+      maxUrls,
+      showFullText: true
     };
 
-    // Send POST request to /api/service
-    const serviceResponse = await fetch(`${request.nextUrl.origin}/api/service`, {
-      method: 'POST',
-      body: JSON.stringify(serviceRequestBody),
-    });
-
-    if (!serviceResponse.ok) {
-      const errorText = await serviceResponse.text();
-      return NextResponse.json(
-        { error: `Error from /api/service: ${errorText}` },
-        { status: serviceResponse.status }
-      );
+    // Check if the last segment is 'full'
+    const isFullRequest = resolvedParams.slug[resolvedParams.slug.length - 1] === 'full';
+    
+    // Remove 'full' from targetUrl if present
+    if (isFullRequest) {
+      targetUrl = targetUrl.replace(/\/full$/, '');
     }
 
-    const serviceData = await serviceResponse.json();
+    console.log(`Processing URL: ${targetUrl}`);
 
-    if (resolvedParams.slug[resolvedParams.slug.length - 1] === 'full') {
-      const llmsFulltxt = serviceData.llmsFulltxt;
+    // Generate LLMs.txt directly
+    const results = await app.generateLLMsText(targetUrl, generationParams);
+
+    if (!results.success) {
+      throw new Error(`Failed to generate: ${results.error || "Unknown error"}`);
+    }
+
+    // Format the response based on whether it's a full request
+    if (isFullRequest) {
+      const llmsFulltxt = results.data.llmsfulltxt;
       if (!llmsFulltxt) {
         console.error('llmsfulltxt is undefined in the response');
         return NextResponse.json(
@@ -81,7 +96,11 @@ export async function GET(
         headers: { 'Content-Type': 'application/json' },
       });
     } else {
-      const llmstxt = serviceData.llmstxt;
+      // Add note if using default API key with limited results
+      let llmstxt = results.data.llmstxt;
+      if (!searchParams.get('FIRECRAWL_API_KEY') && !request.headers.get('FIRECRAWL_API_KEY')) {
+        llmstxt = `*Note: This is an incomplete result, please enable full generation by entering a Firecrawl key.\n\n${llmstxt}`;
+      }
 
       const prettyPrintedData = JSON.stringify({ llmstxt: llmstxt }, null, 2)
         .replace(/\\n/g, '\n')
