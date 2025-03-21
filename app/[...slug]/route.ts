@@ -77,6 +77,7 @@ export async function GET(
 
     // Format the response based on whether it's a full request
     if (isFullRequest) {
+      
       const llmsFulltxt = results.data.llmsfulltxt;
       if (!llmsFulltxt) {
         console.error('llmsfulltxt is undefined in the response');
@@ -86,11 +87,19 @@ export async function GET(
         );
       }
 
-      const prettyPrintedFullTxt = JSON.stringify({ llmsfulltxt: llmsFulltxt }, null, 2)
+      let prettyPrintedFullTxt = JSON.stringify({ llmsfulltxt: llmsFulltxt }, null, 2)
         .replace(/\\n/g, '\n')
         .replace(/\\t/g, '\t')
         .replace(/^\{\s*"llmsfulltxt":\s*"/, '')
         .replace(/"\s*\}$/, '');
+
+      if (!searchParams.get('FIRECRAWL_API_KEY') && !request.headers.get('FIRECRAWL_API_KEY')) {
+        prettyPrintedFullTxt = `*Note: This is an incomplete llmsfulltxt result. To enable full generation, please provide your Firecrawl API key by either:
+1. Adding the 'FIRECRAWL_API_KEY' header to your request (e.g., 'FIRECRAWL_API_KEY: your-api-key-here'), or
+2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')
+
+\n\n${prettyPrintedFullTxt}`;
+      }
 
       return new Response(prettyPrintedFullTxt, {
         headers: { 'Content-Type': 'application/json' },
@@ -99,7 +108,11 @@ export async function GET(
       // Add note if using default API key with limited results
       let llmstxt = results.data.llmstxt;
       if (!searchParams.get('FIRECRAWL_API_KEY') && !request.headers.get('FIRECRAWL_API_KEY')) {
-        llmstxt = `*Note: This is an incomplete result, please enable full generation by entering a Firecrawl key.\n\n${llmstxt}`;
+        llmstxt = `*Note: This is an incomplete llmstxt result. To enable full generation, please provide your Firecrawl API key by either:
+1. Adding the 'FIRECRAWL_API_KEY' header to your request (e.g., 'FIRECRAWL_API_KEY: your-api-key-here'), or
+2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')
+
+\n\n${llmstxt}`;
       }
 
       const prettyPrintedData = JSON.stringify({ llmstxt: llmstxt }, null, 2)
