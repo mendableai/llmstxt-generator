@@ -94,11 +94,9 @@ export async function GET(
         .replace(/"\s*\}$/, '');
 
       if (!searchParams.get('FIRECRAWL_API_KEY') && !request.headers.get('FIRECRAWL_API_KEY')) {
-        prettyPrintedFullTxt = `*Note: This is an incomplete llmsfulltxt result. To enable full generation, please provide your Firecrawl API key by either:
+        prettyPrintedFullTxt = `${prettyPrintedFullTxt} \n\n*Note: This is an incomplete llmsfulltxt result. To enable full generation, please provide your Firecrawl API key by either:
 1. Adding the 'FIRECRAWL_API_KEY' header to your request (e.g., 'FIRECRAWL_API_KEY: your-api-key-here'), or
-2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')
-
-\n\n${prettyPrintedFullTxt}`;
+2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')`;
       }
 
       return new Response(prettyPrintedFullTxt, {
@@ -108,11 +106,9 @@ export async function GET(
       // Add note if using default API key with limited results
       let llmstxt = results.data.llmstxt;
       if (!searchParams.get('FIRECRAWL_API_KEY') && !request.headers.get('FIRECRAWL_API_KEY')) {
-        llmstxt = `*Note: This is an incomplete llmstxt result. To enable full generation, please provide your Firecrawl API key by either:
+        llmstxt = `${llmstxt} \n\n*Note: This is an incomplete llmstxt result. To enable full generation, please provide your Firecrawl API key by either:
 1. Adding the 'FIRECRAWL_API_KEY' header to your request (e.g., 'FIRECRAWL_API_KEY: your-api-key-here'), or
-2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')
-
-\n\n${llmstxt}`;
+2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')`;
       }
 
       const prettyPrintedData = JSON.stringify({ llmstxt: llmstxt }, null, 2)
