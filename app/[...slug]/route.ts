@@ -68,59 +68,161 @@ export async function GET(
 
     console.log(`Processing URL: ${targetUrl}`);
 
-    // Generate LLMs.txt directly
-    const results = await app.generateLLMsText(targetUrl, generationParams);
-
-    if (!results.success) {
-      throw new Error(`Failed to generate: ${results.error || "Unknown error"}`);
+    // Start the async generation process
+    const result = await app.asyncGenerateLLMsText(targetUrl, generationParams);
+    
+    if (!result.success || !result.id) {
+      throw new Error(`Failed to start generation: ${(result as any).error || "Unknown error"}`);
     }
 
-    // Format the response based on whether it's a full request
-    if (isFullRequest) {
-      
-      const llmsFulltxt = results.data.llmsfulltxt;
-      if (!llmsFulltxt) {
-        console.error('llmsfulltxt is undefined in the response');
-        return NextResponse.json(
-          { error: 'llmsfulltxt is undefined in the response' },
-          { status: 500 }
-        );
-      }
-
-      let prettyPrintedFullTxt = JSON.stringify({ llmsfulltxt: llmsFulltxt }, null, 2)
-        .replace(/\\n/g, '\n')
-        .replace(/\\t/g, '\t')
-        .replace(/^\{\s*"llmsfulltxt":\s*"/, '')
-        .replace(/"\s*\}$/, '');
-
-      if (!searchParams.get('FIRECRAWL_API_KEY') && !request.headers.get('FIRECRAWL_API_KEY')) {
-        prettyPrintedFullTxt = `${prettyPrintedFullTxt} \n\n*Note: This is an incomplete llmsfulltxt result. To enable full generation, please provide your Firecrawl API key by either:
+    const jobId = result.id;
+    
+    // Generate a streaming HTML page that will poll for results
+    const htmlPage = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>LLMs.txt Generator</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+          line-height: 1.6;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+          color: #333;
+        }
+        h1 {
+          color: #2563eb;
+        }
+        pre {
+          background-color: #f1f5f9;
+          padding: 15px;
+          border-radius: 5px;
+          overflow-x: auto;
+          white-space: pre-wrap;
+          font-family: monospace;
+        }
+        .status {
+          margin-bottom: 15px;
+          padding: 10px;
+          border-radius: 5px;
+        }
+        .loading {
+          background-color: #e0f2fe;
+          border-left: 4px solid #0ea5e9;
+        }
+        .completed {
+          background-color: #dcfce7;
+          border-left: 4px solid #22c55e;
+        }
+        .error {
+          background-color: #fee2e2;
+          border-left: 4px solid #ef4444;
+        }
+        #result {
+          margin-top: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>LLMs.txt Generator</h1>
+      <div class="status loading" id="status">
+        <p>Processing URL: <strong>${targetUrl}</strong></p>
+        <p>Status: <span id="statusText">Starting...</span></p>
+      </div>
+      <div id="result"></div>
+      <script>
+        const jobId = "${jobId}";
+        const targetUrl = "${targetUrl}";
+        const isFullRequest = ${isFullRequest};
+        const usingCustomApiKey = ${!!(searchParams.get('FIRECRAWL_API_KEY') || request.headers.get('FIRECRAWL_API_KEY'))};
+        
+        let resultElement = document.getElementById('result');
+        let statusElement = document.getElementById('status');
+        let statusTextElement = document.getElementById('statusText');
+        
+        function updateStatus(status, message) {
+          statusTextElement.textContent = message;
+          statusElement.className = \`status \${status}\`;
+        }
+        
+        function updateResult(text) {
+          const pre = document.createElement('pre');
+          pre.textContent = text;
+          resultElement.innerHTML = '';
+          resultElement.appendChild(pre);
+        }
+        
+        function addApiKeyNote(text) {
+          if (!usingCustomApiKey) {
+            return \`\${text} \\n\\n*Note: This is an incomplete result. To enable full generation, please provide your Firecrawl API key by either:
 1. Adding the 'FIRECRAWL_API_KEY' header to your request (e.g., 'FIRECRAWL_API_KEY: your-api-key-here'), or
-2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')`;
-      }
-
-      return new Response(prettyPrintedFullTxt, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } else {
-      // Add note if using default API key with limited results
-      let llmstxt = results.data.llmstxt;
-      if (!searchParams.get('FIRECRAWL_API_KEY') && !request.headers.get('FIRECRAWL_API_KEY')) {
-        llmstxt = `${llmstxt} \n\n*Note: This is an incomplete llmstxt result. To enable full generation, please provide your Firecrawl API key by either:
-1. Adding the 'FIRECRAWL_API_KEY' header to your request (e.g., 'FIRECRAWL_API_KEY: your-api-key-here'), or
-2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')`;
-      }
-
-      const prettyPrintedData = JSON.stringify({ llmstxt: llmstxt }, null, 2)
-        .replace(/\\n/g, '\n')
-        .replace(/\\t/g, '\t')
-        .replace(/^\{\s*"llmstxt":\s*"/, '')
-        .replace(/"\s*\}$/, '');
-
-      return new Response(prettyPrintedData, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+2. Including it as a query parameter (e.g., '?FIRECRAWL_API_KEY=your-api-key-here')\`;
+          }
+          return text;
+        }
+        
+        function formatResponse(data) {
+          if (isFullRequest && data.llmsfulltxt) {
+            return addApiKeyNote(data.llmsfulltxt);
+          } else if (data.llmstxt) {
+            return addApiKeyNote(data.llmstxt);
+          }
+          return "No data available yet";
+        }
+        
+        async function checkStatus() {
+          try {
+            const response = await fetch(\`/api/check-status/\${jobId}\`);
+            const data = await response.json();
+            
+            if (data.error) {
+              updateStatus('error', \`Error: \${data.error}\`);
+              return false;
+            }
+            
+            if (data.status === 'completed') {
+              updateStatus('completed', 'Generation completed!');
+              updateResult(formatResponse(data.data));
+              return true;
+            } else if (data.status === 'failed') {
+              updateStatus('error', \`Generation failed: \${data.error || 'Unknown error'}\`);
+              return true;
+            } else {
+              if (data.data && (data.data.llmstxt || data.data.llmsfulltxt)) {
+                updateResult(formatResponse(data.data));
+              }
+              updateStatus('loading', \`\${data.status} - \${data.progress || 0}% complete\`);
+              return false;
+            }
+          } catch (error) {
+            console.error('Error checking status:', error);
+            updateStatus('error', 'Error checking status');
+            return false;
+          }
+        }
+        
+        // Poll for updates
+        async function pollForUpdates() {
+          const finished = await checkStatus();
+          if (!finished) {
+            setTimeout(pollForUpdates, 2000);
+          }
+        }
+        
+        // Start polling
+        pollForUpdates();
+      </script>
+    </body>
+    </html>
+    `;
+    
+    return new Response(htmlPage, {
+      headers: { 'Content-Type': 'text/html' }
+    });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
