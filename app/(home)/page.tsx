@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { CN_SMOOTH_SHADOW } from "./constants";
 import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { ApiKeyInput } from "@/components/ApiKeyInput";
+import { useApiKey } from "@/hooks/useApiKey";
 import {
   Credenza,
   CredenzaContent,
@@ -30,9 +32,21 @@ export default function Page() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const prevIsModalOpen = usePrevious(isModalOpen);
   const [wantsFull, setWantsFull] = React.useState(false);
-  const [firecrawlKey, setFirecrawlKey] = React.useState("");
+  // Secure API key state/validation
+  const {
+    apiKey: firecrawlKey,
+    setApiKey: setFirecrawlKey,
+    error: firecrawlKeyError,
+    isValid: isFirecrawlKeyValid,
+    reset: resetFirecrawlKey,
+  } = useApiKey();
 
   const [url, setUrl] = React.useState("");
+
+  // New: Feature toggles for enhanced processing
+  const [filterEnglish, setFilterEnglish] = useState(false);
+  const [removeHeadersFooters, setRemoveHeadersFooters] = useState(false);
+  const [cleanExport, setCleanExport] = useState(false);
 
   const hasKey = firecrawlKey.length > 0;
   const isFull = wantsFull && hasKey;
@@ -46,6 +60,7 @@ export default function Page() {
     fullMessage: string;
     message: string;
     isFull: boolean;
+    enhancedOutput?: string;
   } | null>(
     // Mocked data
     // {
@@ -87,10 +102,10 @@ export default function Page() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(firecrawlKey ? { "x-firecrawl-api-key": firecrawlKey } : {}),
         },
         body: JSON.stringify({
           url: formattedUrl,
-          bringYourOwnFirecrawlApiKey: firecrawlKey,
         }),
       });
       const mapData = await mapResponse.json();
@@ -99,11 +114,15 @@ export default function Page() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(firecrawlKey ? { "x-firecrawl-api-key": firecrawlKey } : {}),
         },
         body: JSON.stringify({
           url: formattedUrl,
           urls: mapData.mapUrls,
-          bringYourOwnFirecrawlApiKey: firecrawlKey,
+          // New: Pass enhanced processing options
+          filterEnglish,
+          removeHeadersFooters,
+          cleanExport,
         }),
       });
       const data = await llmsResponse.json();
@@ -111,6 +130,7 @@ export default function Page() {
         fullMessage: data.llmsFulltxt,
         message: data.llmstxt,
         isFull,
+        enhancedOutput: data.enhancedOutput,
       });
     } catch (error) {
       setFinalMessage(null);
@@ -121,7 +141,7 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, [url, wantsFull, hasKey, firecrawlKey]);
+  }, [url, wantsFull, hasKey, firecrawlKey, filterEnglish, removeHeadersFooters, cleanExport]);
 
   const handleSubmit = React.useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -210,8 +230,36 @@ export default function Page() {
 
           {/* Action Bar */}
           <div className="w-full flex justify-between items-center space-y-6">
-            {/* Left */}
-            <div></div>
+            {/* Left: Enhanced Processing Toggles */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="filter-english"
+                  disabled={loading}
+                  checked={filterEnglish}
+                  onCheckedChange={setFilterEnglish}
+                />
+                <Label htmlFor="filter-english">English Only</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="remove-headers-footers"
+                  disabled={loading}
+                  checked={removeHeadersFooters}
+                  onCheckedChange={setRemoveHeadersFooters}
+                />
+                <Label htmlFor="remove-headers-footers">Remove Headers/Footers</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="clean-export"
+                  disabled={loading}
+                  checked={cleanExport}
+                  onCheckedChange={setCleanExport}
+                />
+                <Label htmlFor="clean-export">Clean Export</Label>
+              </div>
+            </div>
 
             {/* Right */}
             <div className="flex space-x-4">
@@ -314,27 +362,51 @@ export default function Page() {
               </div>}
 
               {!loading && finalMessage && (
-                <div className="whitespace-pre-wrap h-full w-full overflow-scroll custom-scrollbar">
-                  {finalMessage.isFull
-                    ? finalMessage.fullMessage
-                    : finalMessage.message}
-                  {!hasKey && (
-                    <div className="flex justify-center">
-                      <div className="px-4 mt-8 mb-4">
-                        For full results get a
-                        <a
-                          href="https://firecrawl.dev"
-                          className={CN_LINK}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {" "}
-                          free Firecrawl key 🔥
-                        </a>
+                <>
+                  <div className="whitespace-pre-wrap h-full w-full overflow-scroll custom-scrollbar">
+                    {finalMessage.isFull
+                      ? finalMessage.fullMessage
+                      : finalMessage.message}
+                    {!hasKey && (
+                      <div className="flex justify-center">
+                        <div className="px-4 mt-8 mb-4">
+                          For full results get a
+                          <a
+                            href="https://firecrawl.dev"
+                            className={CN_LINK}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {" "}
+                            free Firecrawl key 🔥
+                          </a>
+                        </div>
                       </div>
+                    )}
+                  </div>
+                  {/* Enhanced Output Section */}
+                  {finalMessage.enhancedOutput && (
+                    <div className="mt-6 border-t pt-4">
+                      <div className="font-semibold mb-2">Enhanced Output</div>
+                      <div className="whitespace-pre-wrap h-48 w-full overflow-scroll custom-scrollbar border rounded p-2 bg-muted/30">
+                        {finalMessage.enhancedOutput}
+                      </div>
+                      <Button
+                        className="mt-2"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(finalMessage.enhancedOutput || "");
+                          toast({
+                            title: "Copied to clipboard",
+                            description: "The enhanced output has been copied to your clipboard",
+                          });
+                        }}
+                      >
+                        Copy Enhanced Output
+                      </Button>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
 
@@ -393,12 +465,12 @@ export default function Page() {
             </CredenzaHeader>
             <CredenzaBody>
               <div className="flex flex-col">
-                <Input
+                <ApiKeyInput
                   disabled={loading}
-                  autoFocus
-                  placeholder="Paste your Firecrawl API key"
                   value={firecrawlKey}
-                  onChange={(e) => setFirecrawlKey(e.target.value)}
+                  onChange={setFirecrawlKey}
+                  error={firecrawlKeyError}
+                  placeholder="Paste your Firecrawl API key"
                 />
                 <a
                   href="https://firecrawl.dev"
